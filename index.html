@@ -35,15 +35,31 @@ ol li,ul li{margin:6px 0}
 .foot{color:var(--muted);font-size:14px;margin-top:30px}
 @media(max-width:760px){.pics{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}body{font-size:16px}}
 
-/* captions with a small download icon (below the picture, never on top of it) */
-.pics .pic{display:block}
-.cap{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-top:4px}
-.cap span{margin:0!important}
-.dlbtn{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--muted)}
-.dlbtn:hover{color:var(--accent);border-color:var(--accent)}
-.dlbtn svg{width:15px;height:15px}
-.vdl{display:inline-flex;align-items:center;gap:6px;font-size:14px;margin:8px 0 4px;color:var(--accent);text-decoration:none}
-.vdl svg{width:15px;height:15px}
+/* pictures open full screen on click (lightbox); download lives there */
+.pics a,.card.two > img{cursor:zoom-in}
+.pics a img,.card.two > img{transition:transform .2s ease,box-shadow .2s ease}
+.pics a:hover img,.card.two > img:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(35,29,23,.14)}
+body.lb-lock{overflow:hidden}
+.lb{position:fixed;inset:0;z-index:1000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:68px 84px 28px;background:rgba(18,15,12,.97);opacity:0;transition:opacity .18s ease}
+.lb.open{display:flex}.lb.show{opacity:1}
+.lb-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
+.lb-count{color:rgba(255,255,255,.72);font-size:14px;font-variant-numeric:tabular-nums}
+.lb-actions{display:flex;gap:8px}
+.lb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 18px;border:0;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:14.5px;font-weight:600;text-decoration:none;cursor:pointer}
+.lb-btn:hover{background:rgba(255,255,255,.22)}
+.lb-btn svg{width:18px;height:18px;flex:none}
+.lb-dl{background:#fff;color:#231d17}.lb-dl:hover{background:#f3e9dc}
+.lb-close{width:42px;padding:0}
+.lb-fig{margin:0;display:flex;flex-direction:column;align-items:center;gap:14px;max-width:min(1200px,100%)}
+.lb-fig img{display:block;max-width:100%;max-height:calc(100vh - 160px);object-fit:contain;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.45);user-select:none;-webkit-user-drag:none}
+.lb-fig figcaption{color:#f3ece2;font-size:15.5px;line-height:1.5;text-align:center;max-width:720px}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:50px;height:50px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.lb-nav:hover{background:rgba(255,255,255,.24)}
+.lb-nav svg{width:24px;height:24px}
+.lb-prev{left:18px}.lb-next{right:18px}
+.vdl{display:inline-flex;align-items:center;gap:8px;height:40px;margin:12px 0 4px;padding:0 18px;border:1px solid var(--line);border-radius:99px;background:var(--card);color:var(--ink);font-size:14.5px;font-weight:600;text-decoration:none}
+.vdl:hover{border-color:var(--accent);color:var(--accent)}
+.vdl svg{width:17px;height:17px}
 @media(max-width:700px){
   h1{font-size:24px}
   nav{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
@@ -59,6 +75,11 @@ ol li,ul li{margin:6px 0}
   .scroll td:first-child{font-weight:700;font-size:16px;padding-bottom:4px}
   .scroll td:not(:first-child)::before{content:attr(data-label) ": ";color:var(--muted);font-size:13.5px;font-weight:400}
   .card{padding:16px}
+  .lb{padding:62px 10px 96px}
+  .lb-fig img{max-height:calc(100vh - 230px);border-radius:8px}
+  .lb-nav{top:auto;bottom:22px;transform:none;width:54px;height:54px}
+  .lb-prev{left:calc(50% - 66px)}.lb-next{right:calc(50% - 66px)}
+  .lb-btn{height:40px;padding:0 15px}
 }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
@@ -693,25 +714,63 @@ document.getElementById('btnShot').onclick = () => {
 </div>
 
 <script>
-// small download icon next to every picture caption and under every video; table labels for the phone layout
+// pictures open full screen (with Download), video download button, and table labels for the phone layout
 (function(){
-  const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>';
-  document.querySelectorAll('.pics > a').forEach(a => {
-    const img = a.querySelector('img'), span = a.querySelector('span'); if (!img) return;
-    const wrap = document.createElement('div'); wrap.className = 'pic'; a.before(wrap); wrap.appendChild(a);
-    const cap = document.createElement('div'); cap.className = 'cap';
-    if (span) cap.appendChild(span);
-    const d = document.createElement('a'); d.className = 'dlbtn'; d.href = a.getAttribute('href'); d.download = ''; d.title = 'Download'; d.setAttribute('aria-label', 'Download'); d.innerHTML = icon;
-    cap.appendChild(d); wrap.appendChild(cap);
-  });
+  const svg = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  const I = {
+    dl: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+    x: svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+    l: svg('<polyline points="15 18 9 12 15 6"/>'),
+    r: svg('<polyline points="9 18 15 12 9 6"/>'),
+  };
   document.querySelectorAll('video[src]').forEach(v => {
-    const d = document.createElement('a'); d.className = 'vdl'; d.href = v.getAttribute('src'); d.download = ''; d.innerHTML = icon + 'Video download karein';
-    v.after(d);
+    const a = document.createElement('a'); a.className = 'vdl'; a.href = v.getAttribute('src'); a.download = '';
+    a.innerHTML = I.dl + '<span>Video download</span>'; v.after(a);
   });
   document.querySelectorAll('.scroll table').forEach(t => {
     const heads = [...t.querySelectorAll('tr:first-child th')].map(th => th.textContent.trim());
     t.querySelectorAll('tr').forEach(tr => tr.querySelectorAll('td').forEach((td, i) => td.dataset.label = heads[i] || ''));
   });
+
+  // ---- lightbox ----
+  const items = [], index = new Map();
+  document.querySelectorAll('.pics a, .card.two > img').forEach(el => {
+    const img = el.tagName === 'IMG' ? el : el.querySelector('img'); if (!img) return;
+    const src = img.getAttribute('src');
+    const cap = el.tagName === 'IMG' ? (el.closest('.card').querySelector('h3') || {}).textContent || '' : (el.querySelector('span') || {}).textContent || '';
+    if (!index.has(src)) { index.set(src, items.length); items.push({src, cap}); }
+    el.addEventListener('click', e => { e.preventDefault(); open(index.get(src)); });
+  });
+  if (!items.length) return;
+  const lb = document.createElement('div'); lb.className = 'lb'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true');
+  lb.innerHTML = '<div class="lb-top"><span class="lb-count"></span><div class="lb-actions">'
+    + '<a class="lb-btn lb-dl" download>' + I.dl + '<span>Download</span></a>'
+    + '<button class="lb-btn lb-close" aria-label="Band karein">' + I.x + '</button></div></div>'
+    + '<button class="lb-nav lb-prev" aria-label="Pichli tasveer">' + I.l + '</button>'
+    + '<figure class="lb-fig"><img alt=""><figcaption></figcaption></figure>'
+    + '<button class="lb-nav lb-next" aria-label="Agli tasveer">' + I.r + '</button>';
+  document.body.appendChild(lb);
+  const $ = c => lb.querySelector(c), im = $('.lb-fig img');
+  let cur = 0;
+  function show(i){
+    cur = (i + items.length) % items.length; const it = items[cur];
+    im.src = it.src; im.alt = it.cap; $('figcaption').textContent = it.cap;
+    $('.lb-count').textContent = (cur + 1) + ' / ' + items.length;
+    const d = $('.lb-dl'); d.href = it.src; d.setAttribute('download', it.src.split('/').pop());
+  }
+  function open(i){ show(i); lb.classList.add('open'); document.body.classList.add('lb-lock'); requestAnimationFrame(() => lb.classList.add('show')); $('.lb-close').focus(); }
+  function close(){ lb.classList.remove('show'); document.body.classList.remove('lb-lock'); setTimeout(() => lb.classList.remove('open'), 180); }
+  $('.lb-close').onclick = close;
+  $('.lb-prev').onclick = () => show(cur - 1);
+  $('.lb-next').onclick = () => show(cur + 1);
+  lb.addEventListener('click', e => { if (e.target === lb || e.target.classList.contains('lb-fig')) close(); });
+  document.addEventListener('keydown', e => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft') show(cur - 1); else if (e.key === 'ArrowRight') show(cur + 1);
+  });
+  let x0 = null;
+  lb.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, {passive: true});
+  lb.addEventListener('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1)); x0 = null; });
 })();
 </script>
 </body>
